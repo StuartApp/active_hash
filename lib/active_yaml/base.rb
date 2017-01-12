@@ -19,7 +19,8 @@ module ActiveYaml
 
       private
       def load_path(path)
-        YAML.load_file(path)
+        return YAML.load_file(path) unless defined? ERB
+        YAML.load(ERB.new(File.read(path)).result)
       end
     end
   end
