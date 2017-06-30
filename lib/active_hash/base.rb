@@ -35,7 +35,7 @@ module ActiveHash
         if Object.const_defined?(:ActiveModel)
           model_name.cache_key
         else
-          ActiveSupport::Inflector.tableize(self).downcase
+          ActiveSupport::Inflector.tableize(self.name).downcase
         end
       end
 
@@ -90,7 +90,7 @@ module ActiveHash
 
       def insert(record)
         @records ||= []
-        record.attributes[:id] ||= next_id
+        record[:id] ||= next_id
         validate_unique_id(record) if dirty
         mark_dirty
 
@@ -158,8 +158,9 @@ module ActiveHash
         return @records if options.blank?
 
         # use index if searching by id
-        if (ids = (options.delete(:id) || options.delete("id")))
-          candidates = Array.wrap(ids).map { |id| find_by_id(id) }
+        if options.key?(:id) || options.key?("id")
+          ids = (options.delete(:id) || options.delete("id"))
+          candidates = Array.wrap(ids).map { |id| find_by_id(id) }.compact
         end
         return candidates if options.blank?
 
@@ -170,6 +171,10 @@ module ActiveHash
 
       def find_by(options)
         where(options).first
+      end
+
+      def find_by!(options)
+        find_by(options) || (raise RecordNotFound.new("Couldn't find #{name}"))
       end
 
       def match_options?(record, options)
@@ -313,7 +318,7 @@ module ActiveHash
         method_name = :"#{field}="
         unless instance_methods.include?(method_name)
           define_method(method_name) do |new_val|
-            attributes[field] = new_val
+            @attributes[field] = new_val
           end
         end
       end
@@ -417,7 +422,7 @@ module ActiveHash
 
     def attributes
       if self.class.default_attributes
-        self.class.default_attributes.merge @attributes
+        (self.class.default_attributes.merge @attributes).freeze
       else
         @attributes
       end
@@ -433,7 +438,7 @@ module ActiveHash
     alias_method :read_attribute, :_read_attribute
 
     def []=(key, val)
-      attributes[key] = val
+      @attributes[key] = val
     end
 
     def id
@@ -441,7 +446,7 @@ module ActiveHash
     end
 
     def id=(id)
-      attributes[:id] = id
+      @attributes[:id] = id
     end
 
     alias quoted_id id

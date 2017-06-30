@@ -271,6 +271,16 @@ describe ActiveHash, "Base" do
       end.should raise_error(ActiveHash::IdError)
     end
 
+    it "returns a record for specified id" do
+      record = Country.where(id: 1)
+      record.first.id.should == 1
+      record.first.name.should == 'US'
+    end
+
+    it "returns empty array" do
+      expect(Country.where(id: nil)).to eq []
+    end
+
     it "returns multiple records for multiple ids" do
       expect(Country.where(:id => %w(1 2)).map(&:id)).to match_array([1,2])
     end
@@ -341,6 +351,41 @@ describe ActiveHash, "Base" do
 
     it "returns nil when not matched in candidates" do
       expect(Country.find_by(:name => "UK")).to be_nil
+    end
+
+    it "returns nil when passed a wrong id" do
+      expect(Country.find_by(:id => 4)).to be_nil
+    end
+  end
+
+  describe ".find_by!" do
+    before do
+      Country.field :name
+      Country.field :language
+      Country.data = [
+        {:id => 1, :name => "US", :language => 'English'}
+      ]
+    end
+
+    subject { Country.find_by!(name: word) }
+
+    context 'when data exists' do
+      let(:word) { 'US' }
+      it { expect(subject.id).to eq 1 }
+    end
+
+    context 'when data not found' do
+      let(:word) { 'UK' }
+      it { expect{ subject }.to raise_error ActiveHash::RecordNotFound }
+      it "raises 'RecordNotFound' when passed a wrong id" do
+        expect { Country.find_by!(id: 2) }.
+          to raise_error ActiveHash::RecordNotFound
+      end
+
+      it "raises 'RecordNotFound' when passed wrong id and options" do
+        expect { Country.find_by!(id: 2, name: "FR") }.
+          to raise_error ActiveHash::RecordNotFound
+      end
     end
   end
 
